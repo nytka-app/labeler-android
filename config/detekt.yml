@@ -1,0 +1,18 @@
+naming:
+  FunctionNaming:
+    ignoreAnnotated: ['Composable']
+  PackageNaming:
+    active: false        # io.github.nytka_app
+complexity:
+  LongParameterList:
+    ignoreAnnotated: ['Composable']
+    allowedConstructorParameters: 9  # Hilt view models take their collaborators through the constructor
+  LongMethod:
+    ignoreAnnotated: ['Composable']
+  TooManyFunctions:
+    allowedFunctionsPerClass: 25   # the Bluetooth pendant and the API client are cohesive but wide
+style:
+  MagicNumber:
+    active: false        # protocol constants read better inline, next to their comment
+  ReturnCount:
+    active: false        # early returns for "not configured" and "not found" read best

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?><!-- Android cannot allow cleartext per server at runtime. It is allowed here, and ServerUrl refuses
+     http:// unless the user turned on the private-network switch. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>
