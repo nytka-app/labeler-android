@@ -53,6 +53,15 @@ private val DEVICE_LABELS =
         "assistant" to "Assistant",
         "other" to "Other",
     )
+private val CONTENT_LABELS =
+    mapOf(
+        "speech" to "Speech",
+        "singing" to "Singing",
+        "vocal" to "Vocal sounds",
+        "music" to "Music",
+        "other_sound" to "Other sound",
+        "silence" to "Silence",
+    )
 private val FLAG_LABELS =
     mapOf(
         "quiet" to "Quiet or far",
@@ -148,6 +157,8 @@ internal fun Optional(
     vm: SessionViewModel,
 ) {
     Text("Optional", style = MaterialTheme.typography.labelLarge)
+    Text("Sound")
+    ChipRow(CONTENT_LABELS, setOf(card.draft.content).filterNotNull().toSet(), "sound", vm::setContent)
     ChipRow(FLAG_LABELS, card.draft.flags, "flag", vm::toggleFlag)
     ChipRow(LANGUAGE_LABELS, setOf(card.draft.language).filterNotNull().toSet(), "lang", vm::setLanguage)
     if (card.lines.size > 1) {

@@ -12,6 +12,7 @@ data class Answer(
     val clientId: String,
     val source: List<String>? = null,
     val deviceType: String? = null,
+    val content: String? = null,
     val transcript: String? = null,
     val flags: List<String>? = null,
     val language: String? = null,

@@ -84,6 +84,29 @@ object Codes {
     val DEVICE_TYPE = listOf("tv", "phone", "laptop", "car", "assistant", "other")
     val TRANSCRIPT = listOf("right", "small_errors", "wrong_words", "made_up", "cant_hear")
     val FLAGS = listOf("quiet", "noisy", "overlap", "muffled", "clipped", "two_speakers")
+    val CONTENT = listOf("speech", "singing", "vocal", "music", "other_sound", "silence")
     val LANGUAGE = listOf("uk", "ru", "en", "mixed", "other")
     val OVERLAP = listOf("one", "two", "three_plus", "cant_tell")
 }
+
+@Serializable
+data class PendingVoice(
+    val labelId: Long,
+    val segmentId: Long = 0,
+    val durationMs: Long = 0,
+)
+
+@Serializable
+data class PendingVoiceResponse(
+    val items: List<PendingVoice> = emptyList(),
+)
+
+@Serializable
+data class ConfirmVoiceRequest(
+    val labelIds: List<Long>,
+)
+
+@Serializable
+data class ConfirmVoiceResponse(
+    val learned: Int = 0,
+)

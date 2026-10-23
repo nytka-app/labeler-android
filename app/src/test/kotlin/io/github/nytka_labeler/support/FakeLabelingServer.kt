@@ -6,6 +6,7 @@ import io.github.nytka_labeler.api.TaskInfo
 import io.github.nytka_labeler.api.TasksResponse
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import mockwebserver3.Dispatcher
@@ -34,6 +35,8 @@ class FakeLabelingServer : Dispatcher() {
     var tasks: List<TaskInfo> = emptyList()
     var next: NextResponse = NextResponse("s-1", "", emptyList())
     var missingClips: Set<String> = emptySet()
+    var pendingVoice = """{"items":[]}"""
+    val confirmBodies = mutableListOf<String>()
     var fieldError = """{"field":"source","error":"unknown value"}"""
 
     private val labels = mutableMapOf<String, Long>()
@@ -64,6 +67,12 @@ class FakeLabelingServer : Dispatcher() {
             request.method == "GET" && path == "tasks" -> ok(Json.encodeToString(TasksResponse(tasks)))
             request.method == "GET" && path == "next" -> ok(Json.encodeToString(next))
             request.method == "GET" && path.endsWith("/clip") -> clip(path, request)
+            request.method == "GET" && path == "voice/pending" -> ok(pendingVoice)
+            request.method == "POST" && path == "voice/confirm" -> {
+                val body = request.body?.utf8().orEmpty()
+                confirmBodies += body
+                ok("""{"learned":${json.parseToJsonElement(body).jsonObject.getValue("labelIds").jsonArray.size}}""")
+            }
             request.method == "POST" -> answer(path, request)
             else -> MockResponse.Builder().code(404).build()
         }

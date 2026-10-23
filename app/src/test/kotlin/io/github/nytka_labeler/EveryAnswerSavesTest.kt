@@ -120,6 +120,12 @@ class EveryAnswerSavesTest {
             ),
             answer("$fields,\"flags\":${Codes.FLAGS.joinToString(",", "[", "]") { "\"$it\"" }}"),
         )
+        Codes.CONTENT.forEach { code ->
+            case(click("sound_$code", firstButton), answer("$fields,\"content\":\"$code\""))
+        }
+        // A second tap on the same sound clears it.
+        case(click("sound_music", "sound_music", firstButton), answer(fields))
+        case(click("sound_music", "sound_singing", firstButton), answer("$fields,\"content\":\"singing\""))
         Codes.LANGUAGE.forEach { code ->
             case(click("lang_$code", firstButton), answer("$fields,\"language\":\"$code\""))
         }

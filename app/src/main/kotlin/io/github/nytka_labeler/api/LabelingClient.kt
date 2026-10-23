@@ -64,6 +64,12 @@ interface LabelingClient {
         target: File,
     ): ApiResult<Unit>
 
+    /** `GET /voice/pending`: `me` lines waiting for the owner to confirm. */
+    suspend fun voicePending(): ApiResult<List<PendingVoice>>
+
+    /** `POST /voice/confirm`: feeds the lines to the voiceprint; returns how many were learned. */
+    suspend fun voiceConfirm(labelIds: List<Long>): ApiResult<Int>
+
     /** Posts an [Answer] body as it was stored, so a retry sends the same bytes and the same `clientId`. */
     suspend fun answer(
         itemId: Long,

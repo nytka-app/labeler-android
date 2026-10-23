@@ -33,6 +33,7 @@ data class Draft(
     val correction: String = "",
     val flags: Set<String> = emptySet(),
     val language: String? = null,
+    val content: String? = null,
     val linesDiffer: Boolean = false,
 )
 
@@ -202,6 +203,9 @@ class SessionViewModel
         fun setLanguage(code: String) =
             core.update { it.copy(draft = it.draft.copy(language = code.takeIf { c -> c != it.draft.language })) }
 
+        fun setContent(code: String) =
+            core.update { it.copy(draft = it.draft.copy(content = code.takeIf { c -> c != it.draft.content })) }
+
         fun toggleLinesDiffer() = core.update { it.copy(draft = it.draft.copy(linesDiffer = !it.draft.linesDiffer)) }
 
         /** Save of an opened panel. */
@@ -246,6 +250,7 @@ class SessionViewModel
                     transcript = transcript,
                     flags = Codes.FLAGS.filter { it in draft.flags }.ifEmpty { null },
                     language = draft.language,
+                    content = draft.content,
                     correction = correction,
                     overlap = overlap,
                     linesDiffer = draft.linesDiffer,

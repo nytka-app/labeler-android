@@ -46,6 +46,7 @@ fun TasksScreen(
     viewModel: TasksViewModel,
     onStart: (String) -> Unit,
     onSetup: () -> Unit,
+    onVoice: () -> Unit,
 ) {
     val ui by viewModel.ui.collectAsStateWithLifecycle()
     AskForNotifications(ui.reminders)
@@ -53,6 +54,7 @@ fun TasksScreen(
         ui,
         onStart,
         onSetup,
+        onVoice,
         viewModel::refresh,
         viewModel::setReminders,
         viewModel::dismissRefused,
@@ -74,6 +76,7 @@ fun TasksContent(
     ui: TasksUi,
     onStart: (String) -> Unit,
     onSetup: () -> Unit,
+    onVoice: () -> Unit,
     onRefresh: () -> Unit,
     onReminders: (Boolean) -> Unit,
     onDismissRefused: (String) -> Unit,
@@ -107,6 +110,7 @@ fun TasksContent(
             Text("Remind me when clips wait", Modifier.weight(1f))
             Switch(ui.reminders, onReminders, Modifier.testTag("reminders"))
         }
+        TextButton(onClick = onVoice, Modifier.testTag("open_voice")) { Text("Confirm my voice") }
         TextButton(onClick = onSetup, Modifier.testTag("settings")) { Text("Server and token") }
     }
 }

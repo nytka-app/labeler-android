@@ -42,6 +42,16 @@ class LabelingApi(
             json.decodeFromString<NextResponse>(response.body.string())
         }
 
+    override suspend fun voicePending(): ApiResult<List<PendingVoice>> =
+        call("GET", "voice/pending") { json.decodeFromString<PendingVoiceResponse>(it.body.string()).items }
+
+    override suspend fun voiceConfirm(labelIds: List<Long>): ApiResult<Int> =
+        call(
+            "POST",
+            "voice/confirm",
+            body = json.encodeToString(ConfirmVoiceRequest.serializer(), ConfirmVoiceRequest(labelIds)),
+        ) { json.decodeFromString<ConfirmVoiceResponse>(it.body.string()).learned }
+
     override suspend fun clip(
         id: Long,
         context: Int,
@@ -95,6 +105,7 @@ class LabelingApi(
         method: String,
         path: String,
         query: Map<String, String> = emptyMap(),
+        body: String? = null,
         read: (Response) -> T,
     ): ApiResult<T> {
         val target =
@@ -102,8 +113,9 @@ class LabelingApi(
                 is Target.Missing -> return ApiResult.Failure(FailureKind.NotConfigured, t.reason)
                 is Target.Ready -> t
             }
+        val requestBody = body?.toRequestBody("application/json".toMediaType())
         return try {
-            execute(target, method, path, query, null).use { response ->
+            execute(target, method, path, query, requestBody).use { response ->
                 if (response.code in 200..299) ApiResult.Ok(read(response)) else failure(response.code)
             }
         } catch (_: InterruptedIOException) {

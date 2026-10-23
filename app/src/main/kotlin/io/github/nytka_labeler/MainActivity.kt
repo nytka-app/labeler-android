@@ -28,6 +28,7 @@ import io.github.nytka_labeler.settings.SettingsSource
 import io.github.nytka_labeler.ui.SessionScreen
 import io.github.nytka_labeler.ui.SetupScreen
 import io.github.nytka_labeler.ui.TasksScreen
+import io.github.nytka_labeler.ui.VoiceScreen
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -62,7 +63,11 @@ private fun Root(settings: SettingsSource) {
                 hiltViewModel(),
                 onStart = { nav.navigate("session/$it") },
                 onSetup = { nav.navigate("setup") },
+                onVoice = { nav.navigate("voice") },
             )
+        }
+        composable("voice") {
+            VoiceScreen(hiltViewModel(), onExit = { nav.popBackStack() })
         }
         composable("session/{task}", arguments = listOf(navArgument("task") { type = NavType.StringType })) {
             SessionScreen(hiltViewModel(), onExit = { nav.popBackStack() })

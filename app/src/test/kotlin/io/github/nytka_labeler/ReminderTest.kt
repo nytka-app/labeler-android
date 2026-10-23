@@ -40,6 +40,10 @@ class ReminderTest {
                     target: java.io.File,
                 ) = error("not used")
 
+                override suspend fun voicePending() = error("not used")
+
+                override suspend fun voiceConfirm(labelIds: List<Long>) = error("not used")
+
                 override suspend fun answer(
                     itemId: Long,
                     body: String,

@@ -25,7 +25,7 @@ class TasksScreenTest {
     private fun show(
         ui: TasksUi,
         started: MutableList<String> = mutableListOf(),
-    ) = compose.setContent { TasksContent(ui, started::add, {}, {}, {}, {}) }
+    ) = compose.setContent { TasksContent(ui, started::add, {}, {}, {}, {}, {}) }
 
     private val tasks =
         listOf(
