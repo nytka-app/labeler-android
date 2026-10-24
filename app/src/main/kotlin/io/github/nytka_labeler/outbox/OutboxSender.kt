@@ -16,9 +16,9 @@ enum class DrainResult {
 }
 
 /**
- * Sends the pending answers, oldest first. 200 removes one; 400 or 404 parks it with the reason; 401 or 403 stops
- * everything and asks for a token; anything else stops the run for a retry later (order is kept, and the same
- * `clientId` goes out again, which the server treats as the same answer).
+ * Sends the due answers (their undo window is over), oldest first. 200 removes one; 400 or 404 parks it with the
+ * reason; 401 or 403 stops everything and asks for a token; anything else stops the run for a retry later (order is
+ * kept, and the same `clientId` goes out again, which the server treats as the same answer).
  */
 class OutboxSender(
     private val outbox: Outbox,
@@ -31,7 +31,7 @@ class OutboxSender(
         var result = DrainResult.Done
         // Answers given while this runs are picked up by the next pass of the loop.
         while (result == DrainResult.Done) {
-            val rows = outbox.pending()
+            val rows = outbox.due()
             if (rows.isEmpty()) break
             for (row in rows) {
                 val step = send(row)
@@ -44,6 +44,9 @@ class OutboxSender(
         onChanged()
         return result
     }
+
+    /** How long until an answer leaves its undo window, or null when none waits for it. */
+    suspend fun millisToNextDue(): Long? = outbox.millisToNextDue()
 
     /** Null to go on with the next answer. */
     private suspend fun send(row: OutboxRow): DrainResult? =

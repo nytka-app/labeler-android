@@ -24,6 +24,7 @@ class Outbox(
         answer: Answer,
         itemId: Long,
         sessionId: String,
+        notBefore: Long = 0,
     ) {
         dao.deletePendingForItem(itemId)
         dao.insert(
@@ -35,11 +36,22 @@ class Outbox(
                 state = OutboxRow.STATE_PENDING,
                 error = null,
                 createdAt = clock.millis(),
+                notBefore = notBefore,
             ),
         )
     }
 
+    /** Every answer that is not sent or parked, including those still inside their undo window. */
     suspend fun pending(): List<OutboxRow> = dao.pending()
+
+    /** The pending answers to send now: their undo window has passed. */
+    suspend fun due(): List<OutboxRow> = dao.due(clock.millis())
+
+    /** Milliseconds until the next answer becomes due, or null when none waits for its window. */
+    suspend fun millisToNextDue(): Long? = dao.nextDue(clock.millis())?.let { it - clock.millis() }
+
+    /** Undo: true when the answer was still here and is gone now. */
+    suspend fun cancel(clientId: String): Boolean = dao.cancel(clientId) > 0
 
     suspend fun all(): List<OutboxRow> = dao.all()
 

@@ -24,6 +24,11 @@ class ClipStore(
         File(folder(sessionId), ENDED).writeText("")
     }
 
+    /** The owner came back to a finished session (Undo, Back): its clips must stay. */
+    fun unmarkEnded(sessionId: String) {
+        File(folder(sessionId), ENDED).delete()
+    }
+
     fun exists(sessionId: String) = File(root, safe(sessionId)).isDirectory
 
     suspend fun sweep(pendingCount: suspend (sessionId: String) -> Int) {

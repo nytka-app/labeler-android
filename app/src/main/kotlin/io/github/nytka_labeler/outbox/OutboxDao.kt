@@ -6,6 +6,8 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import kotlinx.coroutines.flow.Flow
 
+// One statement per use of the queue: a flat list, not a grab bag.
+@Suppress("TooManyFunctions")
 @Dao
 interface OutboxDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -14,6 +16,18 @@ interface OutboxDao {
     /** Oldest first, so answers reach the server in the order they were given. */
     @Query("SELECT * FROM outbox WHERE state = 'pending' ORDER BY createdAt, rowid")
     suspend fun pending(): List<OutboxRow>
+
+    /** The pending answers whose undo window has passed. */
+    @Query("SELECT * FROM outbox WHERE state = 'pending' AND notBefore <= :now ORDER BY createdAt, rowid")
+    suspend fun due(now: Long): List<OutboxRow>
+
+    /** The earliest send time of a pending answer that is not due yet. */
+    @Query("SELECT MIN(notBefore) FROM outbox WHERE state = 'pending' AND notBefore > :now")
+    suspend fun nextDue(now: Long): Long?
+
+    /** Undo: removes an answer that has not been sent. */
+    @Query("DELETE FROM outbox WHERE clientId = :clientId AND state = 'pending'")
+    suspend fun cancel(clientId: String): Int
 
     @Query("SELECT * FROM outbox ORDER BY createdAt, rowid")
     fun observeAll(): Flow<List<OutboxRow>>

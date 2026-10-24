@@ -21,6 +21,7 @@ data class Answer(
     val linesDiffer: Boolean = false,
     val skipped: Boolean = false,
     val listenedMs: Long = 0,
+    val answeredWith: String? = null,
 ) {
     /** A correction is transcript text: it stays out of logs and crash reports. */
     override fun toString() = "Answer(clientId=$clientId, skipped=$skipped)"

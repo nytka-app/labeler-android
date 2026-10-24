@@ -27,6 +27,7 @@ import io.github.nytka_labeler.session.SessionViewModel
 private val SOURCE_LABELS =
     mapOf(
         "me" to "Me",
+        "not_me" to "Not me",
         "live" to "Live person",
         "device" to "Device",
         "call" to "Call",
@@ -74,10 +75,18 @@ private val FLAG_LABELS =
 private val LANGUAGE_LABELS =
     mapOf("uk" to "Ukrainian", "ru" to "Russian", "en" to "English", "mixed" to "Mixed", "other" to "Other")
 
+/** The label of any answer code, for the quick sheet. */
+internal fun optionLabel(code: String): String =
+    SOURCE_LABELS[code] ?: TRANSCRIPT_LABELS[code] ?: OVERLAP_LABELS[code] ?: code
+
 /** The buttons of each asked axis, in the order of DESIGN.md. */
-private fun buttonsFor(ask: String): Map<String, String> =
+private fun buttonsFor(
+    task: String,
+    ask: String,
+): Map<String, String> =
     when (ask) {
-        Ask.SOURCE -> SOURCE_LABELS
+        // "Not me" is the voice task's coarse "No"; the other source tasks have no such button.
+        Ask.SOURCE -> if (task == "voice") SOURCE_LABELS else SOURCE_LABELS - "not_me"
         Ask.TRANSCRIPT -> TRANSCRIPT_LABELS
         else -> OVERLAP_LABELS
     }
@@ -94,7 +103,7 @@ internal fun Answers(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         maxItemsInEachRow = 2,
     ) {
-        buttonsFor(card.ask).forEach { (code, label) ->
+        buttonsFor(card.current.task, card.current.ask).forEach { (code, label) ->
             val open = card.draft.reveal == code
             val modifier = Modifier.weight(1f).heightIn(min = 64.dp).testTag("answer_$code")
             if (open) {
@@ -109,7 +118,7 @@ internal fun Answers(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun Panel(
+internal fun Panel(
     card: SessionUi.Showing,
     vm: SessionViewModel,
 ) {
@@ -127,7 +136,7 @@ private fun Panel(
             SaveButton(draft.pickedSources.isNotEmpty(), vm)
         }
         "wrong_words" -> {
-            if (card.lines.size == 1) {
+            if (card.current.lines.size == 1) {
                 OutlinedTextField(
                     value = draft.correction,
                     onValueChange = vm::setCorrection,
@@ -161,7 +170,7 @@ internal fun Optional(
     ChipRow(CONTENT_LABELS, setOf(card.draft.content).filterNotNull().toSet(), "sound", vm::setContent)
     ChipRow(FLAG_LABELS, card.draft.flags, "flag", vm::toggleFlag)
     ChipRow(LANGUAGE_LABELS, setOf(card.draft.language).filterNotNull().toSet(), "lang", vm::setLanguage)
-    if (card.lines.size > 1) {
+    if (card.current.lines.size > 1) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Switch(card.draft.linesDiffer, { vm.toggleLinesDiffer() }, Modifier.testTag("lines_differ"))
             Text("  Lines differ")

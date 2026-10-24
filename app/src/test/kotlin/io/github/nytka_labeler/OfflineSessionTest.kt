@@ -81,6 +81,7 @@ class OfflineSessionTest {
         waitUntil { runBlocking { h.outbox.pending() }.size == 3 }
 
         assertEquals(requestsBefore, h.server.requestPaths.size)
+        h.passUndoWindow()
         assertEquals(
             "offline: nothing could be sent, and the answers stay",
             io.github.nytka_labeler.outbox.DrainResult.Retry,
@@ -101,6 +102,7 @@ class OfflineSessionTest {
         vm.choose("none")
         waitUntil { runBlocking { h.outbox.pending() }.size == 3 }
         waitUntil { vm.ui.value is SessionUi.Ended }
+        h.passUndoWindow()
 
         val factory =
             object : WorkerFactory() {
@@ -158,6 +160,7 @@ class OfflineSessionTest {
                     workerParameters: WorkerParameters,
                 ): ListenableWorker? = SendWorker(appContext, workerParameters, h.sender)
             }
+        h.passUndoWindow()
         h.server.postCodes += 500
 
         val worker = TestListenableWorkerBuilder<SendWorker>(context).setWorkerFactory(factory).build()
@@ -179,6 +182,7 @@ class OfflineSessionTest {
         assertTrue(h.clips.exists("s-1"))
 
         h.online = true
+        h.passUndoWindow()
         runBlocking { h.sender.drain() }
 
         assertFalse(h.clips.exists("s-1"))

@@ -54,6 +54,13 @@ data class LabelItem(
     val lines: List<ClipLine> = emptyList(),
     val guess: Guess? = null,
     val prefill: Prefill? = null,
+    /** Up to 2 lines each that overlap the 4-s context window; negative times lie before the clip. */
+    val contextBefore: List<ClipLine> = emptyList(),
+    val contextAfter: List<ClipLine> = emptyList(),
+    /** 100 numbers from 0 to 1 for the waveform; null when the audio was gone. */
+    val peaks: List<Double>? = null,
+    /** Opaque: a voice group id, else the provider label. The server orders a mixed feed by it. */
+    val speakerKey: String? = null,
 )
 
 @Serializable
@@ -87,6 +94,16 @@ object Codes {
     val CONTENT = listOf("speech", "singing", "vocal", "music", "other_sound", "silence")
     val LANGUAGE = listOf("uk", "ru", "en", "mixed", "other")
     val OVERLAP = listOf("one", "two", "three_plus", "cant_tell")
+}
+
+/** The task name that asks for a feed of every task, in runs of 3 to 5. */
+const val MIXED = "mixed"
+
+/** How an answer was given; stored by the server as `answeredWith`. */
+object Via {
+    const val SWIPE = "swipe"
+    const val BUTTON = "button"
+    const val SHEET = "sheet"
 }
 
 @Serializable

@@ -23,6 +23,7 @@ import io.github.nytka_labeler.remind.ReminderControl
 import io.github.nytka_labeler.remind.ReminderNotifier
 import io.github.nytka_labeler.remind.WorkReminderControl
 import io.github.nytka_labeler.session.ClipStore
+import io.github.nytka_labeler.session.SessionConfig
 import io.github.nytka_labeler.session.SessionRepository
 import io.github.nytka_labeler.session.SessionSource
 import io.github.nytka_labeler.settings.SettingsSource
@@ -115,6 +116,9 @@ object AppModule {
     fun headphones(
         @ApplicationContext context: Context,
     ): HeadphoneMonitor = AndroidHeadphoneMonitor(context)
+
+    @Provides
+    fun sessionConfig(): SessionConfig = SessionConfig()
 
     @Provides
     fun clock(): Clock = Clock.systemDefaultZone()
