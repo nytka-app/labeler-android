@@ -17,7 +17,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.io.File
 
-const val TOKEN = "tok-SECRET-9f3a"
+const val TOKEN = "tok-SECRET-9f3a" // gitleaks:allow (synthetic test token)
 
 class FakeCipher : TokenCipher {
     override fun encrypt(plain: String) = "enc:" + plain.reversed()
