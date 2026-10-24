@@ -145,11 +145,11 @@ private fun TaskCard(
             Text("${task.open} open, ${task.labelled} labelled")
             task.goal?.takeIf { it > 0 }?.let { goal ->
                 LinearProgressIndicator(
-                    progress = { (task.labelled.toFloat() / goal).coerceIn(0f, 1f) },
+                    progress = { (task.towardGoal.toFloat() / goal).coerceIn(0f, 1f) },
                     Modifier.fillMaxWidth(),
                 )
                 Text(
-                    "${task.labelled} of $goal ${task.goalLabel.orEmpty()}".trim(),
+                    "${task.towardGoal} of $goal ${task.goalLabel.orEmpty()}".trim(),
                     style = MaterialTheme.typography.bodySmall,
                 )
             }

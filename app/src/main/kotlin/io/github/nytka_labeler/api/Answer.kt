@@ -29,6 +29,10 @@ data class Answer(
     fun encode(): String = wire.encodeToString(serializer(), this)
 
     companion object {
+        /** The server's limits (`POST /{id}`): a longer value is a 400 that would park the answer. */
+        const val MAX_LISTENED_MS = 600_000L
+        const val MAX_CORRECTION = 2000
+
         private val wire =
             Json {
                 encodeDefaults = true
