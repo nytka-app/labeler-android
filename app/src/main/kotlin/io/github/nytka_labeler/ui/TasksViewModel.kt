@@ -12,6 +12,8 @@ import io.github.nytka_labeler.outbox.OutboxRow
 import io.github.nytka_labeler.outbox.SendScheduler
 import io.github.nytka_labeler.play.HeadphoneMonitor
 import io.github.nytka_labeler.remind.ReminderControl
+import io.github.nytka_labeler.session.WeekDay
+import io.github.nytka_labeler.session.weekStrip
 import io.github.nytka_labeler.settings.SettingsSource
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -20,6 +22,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.Clock
+import java.time.LocalDate
 import javax.inject.Inject
 
 data class TasksUi(
@@ -33,6 +37,10 @@ data class TasksUi(
     /** Answers still on the phone, waiting for the network. */
     val waiting: Int = 0,
     val refused: List<OutboxRow> = emptyList(),
+    /** The last seven days, lit when a session happened. */
+    val week: List<WeekDay> = emptyList(),
+    /** Play each clip on arrival through the loudspeaker too (default off: it waits for a tap). */
+    val autoplaySpeaker: Boolean = false,
 )
 
 private data class Loaded(
@@ -52,6 +60,7 @@ class TasksViewModel
         private val settings: SettingsSource,
         private val reminders: ReminderControl,
         headphones: HeadphoneMonitor,
+        private val clock: Clock,
     ) : ViewModel() {
         private val loaded = MutableStateFlow(Loaded())
 
@@ -66,6 +75,8 @@ class TasksViewModel
                     reminders = s.remindersEnabled,
                     waiting = rows.count { it.state == OutboxRow.STATE_PENDING },
                     refused = rows.filter { it.state == OutboxRow.STATE_PARKED },
+                    week = weekStrip(LocalDate.now(clock), s.sessionDays),
+                    autoplaySpeaker = s.autoplaySpeaker,
                 )
             }.stateIn(viewModelScope, SharingStarted.Eagerly, TasksUi())
 
@@ -95,6 +106,10 @@ class TasksViewModel
                 settings.update { it.copy(remindersEnabled = enabled) }
                 reminders.apply(enabled)
             }
+        }
+
+        fun setAutoplaySpeaker(enabled: Boolean) {
+            viewModelScope.launch { settings.update { it.copy(autoplaySpeaker = enabled) } }
         }
 
         fun dismissRefused(clientId: String) {

@@ -1,6 +1,7 @@
 package io.github.nytka_labeler.support
 
 import io.github.nytka_labeler.api.ClipLine
+import io.github.nytka_labeler.api.Guess
 import io.github.nytka_labeler.api.LabelItem
 import io.github.nytka_labeler.api.Prefill
 import io.github.nytka_labeler.outbox.SendScheduler
@@ -16,6 +17,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.io.File
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneId
+import java.time.ZoneOffset
 
 const val TOKEN = "tok-SECRET-9f3a" // gitleaks:allow (synthetic test token)
 
@@ -42,15 +47,26 @@ class FakeClipPlayer : ClipPlayer {
     private val mutablePlaying = MutableStateFlow(false)
     override val playing: StateFlow<Boolean> = mutablePlaying.asStateFlow()
     override var listenedMs: Long = LISTENED
+    override var positionMs: Long = 0
+    override var durationMs: Long = 0
     val loaded = mutableListOf<File>()
     var stopped = 0
+    var replays = 0
 
     override fun load(
         file: File,
         keepCount: Boolean,
+        autoplay: Boolean,
     ) {
         check(file.exists()) { "the player was given a clip that is not on disk" }
         loaded += file
+        positionMs = 0
+        mutablePlaying.value = autoplay
+    }
+
+    override fun replay() {
+        replays++
+        positionMs = 0
         mutablePlaying.value = true
     }
 
@@ -98,12 +114,32 @@ class FakeSessionSource(
     ) = result
 }
 
+/** A clock the test moves by hand: the undo window and the outbox's not-before time read it. */
+class TestClock(
+    var now: Long = Instant.parse("2026-10-24T10:00:00Z").toEpochMilli(),
+) : Clock() {
+    override fun getZone(): ZoneId = ZoneOffset.UTC
+
+    override fun withZone(zone: ZoneId?): Clock = this
+
+    override fun instant(): Instant = Instant.ofEpochMilli(now)
+
+    fun advance(ms: Long) {
+        now += ms
+    }
+}
+
 fun item(
     id: Long,
     task: String,
     ask: String,
     vararg text: String,
     language: String? = null,
+    guess: Guess? = null,
+    peaks: List<Double>? = null,
+    speakerKey: String? = null,
+    before: List<ClipLine> = emptyList(),
+    after: List<ClipLine> = emptyList(),
 ) = LabelItem(
     id = id,
     task = task,
@@ -114,6 +150,11 @@ fun item(
     durationMs = 6400,
     lines = text.mapIndexed { i, t -> ClipLine(id * 10 + i, t, false, 0, 6400) },
     prefill = language?.let { Prefill(it) },
+    guess = guess,
+    peaks = peaks,
+    speakerKey = speakerKey,
+    contextBefore = before,
+    contextAfter = after,
 )
 
 /** The task's `ask` as docs/api.md lists it. */

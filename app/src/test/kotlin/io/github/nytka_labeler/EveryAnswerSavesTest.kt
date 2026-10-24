@@ -74,9 +74,11 @@ class EveryAnswerSavesTest {
     private fun answer(
         fields: String,
         linesDiffer: Boolean = false,
-    ) = """{$fields,"linesDiffer":$linesDiffer,"skipped":false,"listenedMs":${FakeClipPlayer.LISTENED}}"""
+    ) = """{$fields,"linesDiffer":$linesDiffer,"skipped":false,"listenedMs":${FakeClipPlayer.LISTENED},""" +
+        """"answeredWith":"sheet"}"""
 
-    private val skipped = """{"linesDiffer":false,"skipped":true,"listenedMs":${FakeClipPlayer.LISTENED}}"""
+    private val skipped =
+        """{"linesDiffer":false,"skipped":true,"listenedMs":${FakeClipPlayer.LISTENED},"answeredWith":"button"}"""
 
     private fun cases(
         task: String,
@@ -147,6 +149,7 @@ class EveryAnswerSavesTest {
             (Codes.SOURCE - "device").forEach { code ->
                 case(click("answer_$code"), answer("\"source\":[\"$code\"]"))
             }
+            if (task == "voice") case(click("answer_not_me"), answer("\"source\":[\"not_me\"]"))
             case(click("answer_device", "save"), answer("\"source\":[\"device\"]"))
             Codes.DEVICE_TYPE.forEach { type ->
                 case(
@@ -171,7 +174,7 @@ class EveryAnswerSavesTest {
                 click("flag_muffled", "answer_device", "device_type_car", "save"),
                 answer("\"source\":[\"device\"],\"deviceType\":\"car\",\"flags\":[\"muffled\"]"),
             )
-            case(click("skip"), skipped)
+            case(click("rail_skip"), skipped)
         }
 
     private fun transcriptCases(task: String) =
@@ -209,7 +212,7 @@ class EveryAnswerSavesTest {
                 ),
                 answer("\"transcript\":\"wrong_words\",\"flags\":[\"quiet\"],\"correction\":\"Добрий день\""),
             )
-            case(click("skip"), skipped)
+            case(click("rail_skip"), skipped)
         }
 
     private fun overlapCases(task: String) =
@@ -218,7 +221,7 @@ class EveryAnswerSavesTest {
                 case(click("answer_$code"), answer("\"overlap\":\"$code\""))
             }
             optionalRows("answer_two", "\"overlap\":\"two\"")
-            case(click("skip"), skipped)
+            case(click("rail_skip"), skipped)
         }
 
     // ---- one test per task
@@ -249,6 +252,8 @@ class EveryAnswerSavesTest {
 
         cases.forEachIndexed { index, case ->
             compose.onNodeWithTag("progress").assertTextEquals("${index + 1} of ${cases.size}")
+            // The big grid is gone: every value now sits in the long-press sheet, which More opens.
+            if (case.taps.first() != Tap.Click("rail_skip")) perform(Tap.Click("rail_more"))
             case.taps.forEach(::perform)
             if (index + 1 < cases.size) {
                 waitFor { text("progress") == "${index + 2} of ${cases.size}" }
@@ -269,6 +274,10 @@ class EveryAnswerSavesTest {
         waitFor { text("end_waiting").isNotEmpty() }
         compose.onNodeWithTag("end_saved").assertTextEquals("0 saved on the server")
 
+        // The undo window holds every answer back; once it is over the outbox sends them all.
+        assertEquals(DrainResult.Done, runBlocking { h.sender.drain() })
+        assertEquals("nothing is sent inside the undo window", 0, h.server.posts.size)
+        h.passUndoWindow()
         assertEquals(DrainResult.Done, runBlocking { h.sender.drain() })
         assertEquals(
             "the outbox keeps nothing after 200s",
@@ -305,7 +314,10 @@ class EveryAnswerSavesTest {
 
     private fun perform(tap: Tap) {
         when (tap) {
-            is Tap.Click -> compose.onNodeWithTag(tap.tag).performScrollTo().performClick()
+            is Tap.Click ->
+                compose.onNodeWithTag(tap.tag).apply {
+                    if (tap.tag.startsWith("rail_")) performClick() else performScrollTo().performClick()
+                }
             is Tap.Type ->
                 compose.onNodeWithTag(tap.tag).performScrollTo().apply {
                     performTextClearance()

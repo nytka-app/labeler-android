@@ -32,9 +32,22 @@ class ExoClipPlayer(
     override val listenedMs: Long
         get() = heard + if (playingSince > 0) SystemClock.elapsedRealtime() - playingSince else 0
 
+    override val positionMs: Long
+        get() = player?.currentPosition ?: 0
+
+    override val durationMs: Long
+        get() = player?.duration?.takeIf { it != C.TIME_UNSET } ?: 0
+
+    override fun replay() {
+        val exo = player ?: return
+        exo.seekTo(0)
+        exo.play()
+    }
+
     override fun load(
         file: File,
         keepCount: Boolean,
+        autoplay: Boolean,
     ) {
         val exo = ensure()
         if (!keepCount) {
@@ -43,7 +56,7 @@ class ExoClipPlayer(
         }
         exo.setMediaItem(MediaItem.fromUri(android.net.Uri.fromFile(file)))
         exo.prepare()
-        exo.play()
+        if (autoplay) exo.play() else exo.pause()
     }
 
     override fun toggle() {

@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStoreFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -37,6 +38,8 @@ class SettingsStore(
             preferences[REMINDERS] = next.remindersEnabled
             preferences[LAST_SESSION_DAY] = next.lastSessionDay
             preferences[TOKEN_REFUSED] = next.tokenRefused
+            preferences[SESSION_DAYS] = next.sessionDays
+            preferences[AUTOPLAY_SPEAKER] = next.autoplaySpeaker
         }
     }
 
@@ -48,6 +51,8 @@ class SettingsStore(
             remindersEnabled = preferences[REMINDERS] ?: true,
             lastSessionDay = preferences[LAST_SESSION_DAY] ?: "",
             tokenRefused = preferences[TOKEN_REFUSED] ?: false,
+            sessionDays = preferences[SESSION_DAYS] ?: emptySet(),
+            autoplaySpeaker = preferences[AUTOPLAY_SPEAKER] ?: false,
         )
 
     companion object {
@@ -57,6 +62,8 @@ class SettingsStore(
         private val REMINDERS = booleanPreferencesKey("reminders")
         private val LAST_SESSION_DAY = stringPreferencesKey("last_session_day")
         private val TOKEN_REFUSED = booleanPreferencesKey("token_refused")
+        private val SESSION_DAYS = stringSetPreferencesKey("session_days")
+        private val AUTOPLAY_SPEAKER = booleanPreferencesKey("autoplay_speaker")
 
         fun create(
             context: Context,

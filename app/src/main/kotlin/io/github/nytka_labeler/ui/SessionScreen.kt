@@ -1,33 +1,40 @@
 package io.github.nytka_labeler.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.pager.VerticalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import io.github.nytka_labeler.session.AnsweredCard
-import io.github.nytka_labeler.session.EndSummary
-import io.github.nytka_labeler.session.SaveState
 import io.github.nytka_labeler.session.SessionUi
 import io.github.nytka_labeler.session.SessionViewModel
+
+/** Clips kept composed around the current one, so a swipe never waits for a waveform. */
+private const val PAGES_AHEAD = 3
 
 @Composable
 fun SessionScreen(
@@ -35,21 +42,42 @@ fun SessionScreen(
     onExit: () -> Unit,
 ) {
     val ui by viewModel.ui.collectAsStateWithLifecycle()
+    val haptic = LocalHapticFeedback.current
     // A clip must not keep playing behind another app.
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.pausePlayback() }
-    Column(Modifier.fillMaxSize().padding(16.dp)) {
+    LaunchedEffect(viewModel) {
+        viewModel.haptics.collect { yes ->
+            haptic.performHapticFeedback(if (yes) HapticFeedbackType.Confirm else HapticFeedbackType.Reject)
+        }
+    }
+    Box(Modifier.fillMaxSize()) {
         when (val state = ui) {
-            is SessionUi.Loading -> Loading(state)
-            is SessionUi.Failed -> Failed(state.message, viewModel::load, onExit)
-            SessionUi.Empty -> Empty(onExit)
-            is SessionUi.Showing -> CardView(state, viewModel, onExit)
+            is SessionUi.Loading -> Pad { Loading(state) }
+            is SessionUi.Failed -> Pad { Failed(state.message, viewModel::load, onExit) }
+            SessionUi.Empty -> Pad { Empty(onExit) }
+            is SessionUi.Showing -> Feed(state, viewModel, onExit)
             is SessionUi.Ended ->
-                EndView(state.summary, viewModel::back) {
-                    viewModel.leave()
-                    onExit()
+                Column(Modifier.fillMaxSize()) {
+                    Box(Modifier.weight(1f)) {
+                        EndView(
+                            state,
+                            onAnother = viewModel::another,
+                            back = viewModel::back,
+                            done = {
+                                viewModel.leave()
+                                onExit()
+                            },
+                        )
+                    }
+                    if (state.undo) UndoBar(viewModel::undo)
                 }
         }
     }
+}
+
+@Composable
+private fun Pad(content: @Composable () -> Unit) {
+    Column(Modifier.fillMaxSize().padding(16.dp)) { content() }
 }
 
 @Composable
@@ -78,87 +106,95 @@ private fun Empty(onExit: () -> Unit) {
     Button(onClick = onExit) { Text("Back to tasks") }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+/** The vertical feed: a top bar, one clip per page, the undo bar and the rail. */
 @Composable
-private fun CardView(
-    card: SessionUi.Showing,
+private fun Feed(
+    state: SessionUi.Showing,
     vm: SessionViewModel,
     onExit: () -> Unit,
 ) {
-    Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                "${card.position} of ${card.total}",
-                Modifier.testTag("progress"),
-                style = MaterialTheme.typography.titleMedium,
-            )
-            card.previous?.let {
-                Text(
-                    "  previous: ${statusText(it)}",
-                    Modifier.testTag("previous_status"),
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
-        }
-        card.answered?.let {
-            Text(statusText(it), Modifier.testTag("card_status"), color = MaterialTheme.colorScheme.primary)
-        }
-        card.lines.forEach { Text(it, Modifier.testTag("line_text"), style = MaterialTheme.typography.titleLarge) }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(
-                onClick = vm::playPause,
-                Modifier.testTag("play"),
-            ) { Text(if (card.playing) "Pause" else "Replay") }
-            if (card.hasContext) {
-                OutlinedButton(onClick = vm::toggleContext, Modifier.testTag("context")) {
-                    Text(if (card.showingContext) "Clip only" else "Context")
-                }
-            }
-        }
-        Answers(card, vm)
-        Optional(card, vm)
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            TextButton(onClick = vm::back, Modifier.testTag("back"), enabled = card.position > 1) { Text("Back") }
-            TextButton(onClick = vm::skip, Modifier.testTag("skip")) { Text("Skip") }
-            TextButton(onClick = {
+    val pager = rememberPagerState(initialPage = state.index) { state.cards.size }
+    // A swipe settles the pager and tells the view model; an answer, Undo or Back moves the pager the other way.
+    LaunchedEffect(pager) { snapshotFlow { pager.settledPage }.collect(vm::onPage) }
+    LaunchedEffect(state.index) { if (pager.settledPage != state.index) pager.animateScrollToPage(state.index) }
+    val position by vm.position.collectAsStateWithLifecycle()
+    val actions = PageActions(yes = vm::yes, no = vm::no, replay = vm::replay, more = vm::openFull)
+    Box(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize()) {
+            TopBar(state) {
                 vm.leave()
                 onExit()
-            }, Modifier.testTag("leave")) { Text("Stop") }
+            }
+            Box(Modifier.weight(1f).fillMaxWidth()) {
+                VerticalPager(
+                    pager,
+                    Modifier.fillMaxSize().testTag("feed"),
+                    beyondViewportPageCount = PAGES_AHEAD,
+                    userScrollEnabled = state.sheet == null,
+                    key = { state.cards[it].itemId },
+                ) { page ->
+                    val current = page == state.index
+                    FeedPage(
+                        PageState(state.cards[page], current, current && state.waitsForTap),
+                        if (current) position else 0L,
+                        enabled = current && state.sheet == null,
+                        actions = actions,
+                    )
+                }
+                state.flash?.let { Flash(it, Modifier.align(Alignment.TopCenter)) }
+            }
+            if (state.undo) UndoBar(vm::undo)
+            Rail(vm)
         }
+        if (state.sheet != null) AnswerSheet(state, vm)
     }
 }
 
-private fun statusText(card: AnsweredCard) =
-    when (card.state) {
-        SaveState.Saved -> if (card.skipped) "Skipped (saved)" else "Saved ✓"
-        SaveState.Waiting -> "Waiting to send"
-        SaveState.Refused -> "Refused: ${card.refusal.orEmpty()}"
+@Composable
+private fun Flash(
+    text: String,
+    modifier: Modifier,
+) {
+    Surface(
+        modifier.padding(top = 8.dp),
+        shape = MaterialTheme.shapes.extraLarge,
+        color = MaterialTheme.colorScheme.inverseSurface,
+    ) {
+        Text(
+            text,
+            Modifier.padding(horizontal = 16.dp, vertical = 8.dp).testTag("flash"),
+            color = MaterialTheme.colorScheme.inverseOnSurface,
+        )
     }
+}
 
 @Composable
-private fun EndView(
-    summary: EndSummary,
-    back: () -> Unit,
-    done: () -> Unit,
+private fun TopBar(
+    state: SessionUi.Showing,
+    onExit: () -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Session done", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.testTag("end_title"))
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
         Text(
-            "${summary.answered} answered, ${summary.skipped} skipped",
-            Modifier.testTag("end_counts"),
+            taskName(state.current.task),
+            Modifier.weight(1f).testTag("task_name"),
+            style = MaterialTheme.typography.titleMedium,
         )
-        Text("${summary.saved} saved on the server", Modifier.testTag("end_saved"))
-        if (summary.waiting > 0) {
-            Text(
-                "${summary.waiting} waiting to send. They go out when there is a network.",
-                Modifier.testTag("end_waiting"),
-            )
-        }
-        summary.refused.forEach { Text("Refused: $it", color = MaterialTheme.colorScheme.error) }
-        Button(onClick = done, Modifier.testTag("done")) { Text("Back to tasks") }
-        TextButton(onClick = back, Modifier.testTag("end_back")) { Text("Change the last answer") }
+        Text(
+            "${state.position} of ${state.total}",
+            Modifier.testTag("progress"),
+            style = MaterialTheme.typography.titleMedium,
+        )
+        CircularProgressIndicator(
+            progress = { (state.answeredCount.toFloat() / state.goal).coerceIn(0f, 1f) },
+            Modifier
+                .padding(2.dp)
+                .semantics { contentDescription = "${state.answeredCount} of ${state.goal} answered" }
+                .testTag("goal_ring"),
+        )
+        TextButton(onClick = onExit, Modifier.testTag("leave")) { Text("Stop") }
     }
 }

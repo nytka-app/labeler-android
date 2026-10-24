@@ -28,16 +28,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.github.nytka_labeler.api.MIXED
 import io.github.nytka_labeler.api.TaskInfo
-
-private val TASK_NAMES =
-    mapOf(
-        "device" to "Device or live voice",
-        "voice" to "My voice",
-        "quiet" to "Quiet lines",
-        "transcript" to "Transcript",
-        "overlap" to "Overlap",
-    )
 
 const val HEADPHONE_HINT = "Device audio is easier to hear through headphones"
 
@@ -58,6 +50,7 @@ fun TasksScreen(
         viewModel::refresh,
         viewModel::setReminders,
         viewModel::dismissRefused,
+        viewModel::setAutoplaySpeaker,
     )
 }
 
@@ -80,6 +73,7 @@ fun TasksContent(
     onRefresh: () -> Unit,
     onReminders: (Boolean) -> Unit,
     onDismissRefused: (String) -> Unit,
+    onAutoplaySpeaker: (Boolean) -> Unit = {},
 ) {
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
@@ -105,13 +99,36 @@ fun TasksContent(
             }
         }
         if (ui.loading) Text("Loading tasks")
+        if (ui.week.isNotEmpty()) WeekStripView(ui.week)
+        if (ui.tasks.isNotEmpty()) MixedCard(ui.tasks, onStart)
         ui.tasks.forEach { TaskCard(it, onStart) }
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text("Remind me when clips wait", Modifier.weight(1f))
             Switch(ui.reminders, onReminders, Modifier.testTag("reminders"))
         }
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("Autoplay on speaker", Modifier.weight(1f))
+            Switch(ui.autoplaySpeaker, onAutoplaySpeaker, Modifier.testTag("autoplay_speaker"))
+        }
         TextButton(onClick = onVoice, Modifier.testTag("open_voice")) { Text("Confirm my voice") }
         TextButton(onClick = onSetup, Modifier.testTag("settings")) { Text("Server and token") }
+    }
+}
+
+/** One feed of every task, in runs of 3 to 5 of one task. */
+@Composable
+private fun MixedCard(
+    tasks: List<TaskInfo>,
+    onStart: (String) -> Unit,
+) {
+    val open = tasks.sumOf { it.open }
+    Card(
+        Modifier.fillMaxWidth().testTag("task_$MIXED").clickable(enabled = open > 0) { onStart(MIXED) },
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(taskName(MIXED), style = MaterialTheme.typography.titleMedium)
+            Text("$open open, every task in short runs")
+        }
     }
 }
 
@@ -124,7 +141,7 @@ private fun TaskCard(
         Modifier.fillMaxWidth().testTag("task_${task.task}").clickable(enabled = task.open > 0) { onStart(task.task) },
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(TASK_NAMES[task.task] ?: task.task, style = MaterialTheme.typography.titleMedium)
+            Text(taskName(task.task), style = MaterialTheme.typography.titleMedium)
             Text("${task.open} open, ${task.labelled} labelled")
             task.goal?.takeIf { it > 0 }?.let { goal ->
                 LinearProgressIndicator(

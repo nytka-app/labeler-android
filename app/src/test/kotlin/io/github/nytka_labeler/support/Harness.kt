@@ -13,6 +13,7 @@ import io.github.nytka_labeler.outbox.OutboxSender
 import io.github.nytka_labeler.session.Card
 import io.github.nytka_labeler.session.ClipStore
 import io.github.nytka_labeler.session.LoadedSession
+import io.github.nytka_labeler.session.SessionConfig
 import io.github.nytka_labeler.session.SessionViewModel
 import io.github.nytka_labeler.session.StartResult
 import io.github.nytka_labeler.settings.Settings
@@ -21,9 +22,6 @@ import okhttp3.OkHttpClient
 import java.io.File
 import java.io.IOException
 import java.nio.file.Files
-import java.time.Clock
-import java.time.Instant
-import java.time.ZoneOffset
 
 /**
  * Everything a session needs, wired as in the app but with hand-written fakes at the edges: a real Room database
@@ -32,6 +30,9 @@ import java.time.ZoneOffset
 class Harness(
     val task: String,
     val items: List<LabelItem>,
+    /** The goal is far above a test's clips unless the test is about the goal. */
+    val config: SessionConfig = SessionConfig(goal = 1_000),
+    headphones: Boolean = true,
     val dir: File = Files.createTempDirectory("labeler").toFile(),
     val context: Context = ApplicationProvider.getApplicationContext<Application>(),
 ) {
@@ -43,7 +44,9 @@ class Harness(
             .setQueryExecutor { it.run() }
             .allowMainThreadQueries()
             .build()
-    val outbox = Outbox(db.outbox())
+    val clock = TestClock()
+    val outbox = Outbox(db.outbox(), clock)
+    val headphones = FakeHeadphones(headphones)
     val clips = ClipStore(File(dir, "clips"))
     val player = FakeClipPlayer()
     val scheduler = RecordingScheduler()
@@ -86,8 +89,14 @@ class Harness(
             clips,
             player,
             settings,
-            Clock.fixed(Instant.parse("2026-10-24T10:00:00Z"), ZoneOffset.UTC),
+            clock,
+            api,
+            this.headphones,
+            config,
         )
+
+    /** The undo window of every answer given so far is over: the outbox may send them. */
+    fun passUndoWindow() = clock.advance(config.undoMs + 1)
 
     fun close() {
         db.close()

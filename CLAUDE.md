@@ -20,9 +20,9 @@ One `:app` module.
 | `settings/` | `Settings`, `SettingsStore` (DataStore), `TokenCipher` (Keystore AES-GCM) |
 | `outbox/` | `Outbox` (Room), `OutboxSender` (the send rules), `SendWorker` and `SendScheduler` |
 | `session/` | `SessionRepository` (lease and download), `ClipStore`, `SessionViewModel` |
-| `play/` | `ClipPlayer` (ExoPlayer + MediaSession), `HeadphoneMonitor` |
+| `play/` | `ClipPlayer` (ExoPlayer + MediaSession), `HeadphoneMonitor`: autoplay with sound only on headphones, else a tap (setting "Autoplay on speaker") |
 | `remind/` | `Reminder`, `ReminderWorker`, notification |
-| `ui/` | Compose screens and their view models |
+| `ui/` | Compose screens and their view models; `SessionScreen` is the vertical feed (`VerticalPager`, `FeedPage` swipe card, `Rail`, `AnswerSheet`, `EndView`), design in `nytka/labeler/DESIGN.md` section 7 |
 
 ## Commands
 
@@ -39,13 +39,16 @@ export JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home   #
 
 ## Invariants
 
-1. **A tap is an answer.** Every button of the asked axis and every optional row has a test that taps it through the
-   Compose UI and compares the exact JSON that reaches a MockWebServer (`EveryAnswerSavesTest`). An earlier labelling
-   page silently lost every label to a button handler bug. Add a button, add its case. Never loosen that test to
-   make a change pass.
+1. **A gesture or a tap is an answer.** Every value of the asked axis (the long-press sheet) and every optional row has
+   a test that taps it through the Compose UI and compares the exact JSON that reaches a MockWebServer
+   (`EveryAnswerSavesTest`); every task's swipes and rail buttons do the same, `answeredWith` included
+   (`FeedGesturesTest`, `FeedRailTest`). An earlier labelling page silently lost every label to a button handler bug.
+   Add a value, a gesture or a button, add its case. Never loosen those tests to make a change pass.
 2. **An answer leaves the outbox only on a `200`.** `400` parks it with the field error, `404` parks it, `401` or
    `403` stops the run and sets `tokenRefused` until a new token is saved, anything else retries with backoff. The
    body is stored as sent, so a retry repeats the same `clientId`, and the server treats it as the same answer.
+   An answer is queued with `notBefore` 4 s ahead (the undo window): `OutboxSender` sends only due rows, Undo
+   deletes a pending row, and `SendWorker` waits for the next due time.
 3. **A saved tick needs the `200`.** `Outbox.sent` is the only proof the UI reads; "no row in the outbox" is not.
 4. **A session works offline.** `SessionRepository` downloads context 0 and 4 of every clip to
    `noBackupFilesDir/clips/<sessionId>/` before the first card. Clips are deleted when the session has ended and none

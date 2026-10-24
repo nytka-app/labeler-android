@@ -1,5 +1,6 @@
 package io.github.nytka_labeler.outbox
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -18,6 +19,8 @@ data class OutboxRow(
     /** Why a [STATE_PARKED] answer was refused: the server's field message. */
     val error: String?,
     val createdAt: Long,
+    /** Epoch millis before which the answer is not sent: the owner can still take it back. */
+    @ColumnInfo(defaultValue = "0") val notBefore: Long = 0,
 ) {
     /** [body] can hold transcript text, so it is not printed. */
     override fun toString() = "OutboxRow(clientId=$clientId, itemId=$itemId, state=$state)"

@@ -87,6 +87,7 @@ class TokenSafetyTest {
             h.server.postCodes += 500
             vm.skip()
             wait { runBlocking { h.outbox.pending() }.size == 2 }
+            h.passUndoWindow()
             runBlocking { h.sender.drain() }
             h.server.postCodes += 400
             runBlocking { h.sender.drain() }
