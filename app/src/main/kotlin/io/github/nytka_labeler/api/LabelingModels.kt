@@ -11,7 +11,11 @@ data class TaskInfo(
     val labelled: Int = 0,
     val goal: Int? = null,
     val goalLabel: String? = null,
-)
+    /** Labels that count toward [goal]; for `device`, not-device lines. Older servers send only [labelled]. */
+    val progress: Int? = null,
+) {
+    val towardGoal: Int get() = progress ?: labelled
+}
 
 @Serializable
 data class TasksResponse(

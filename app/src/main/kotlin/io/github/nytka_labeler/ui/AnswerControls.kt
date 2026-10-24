@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import io.github.nytka_labeler.api.Answer
 import io.github.nytka_labeler.api.Ask
 import io.github.nytka_labeler.api.Codes
 import io.github.nytka_labeler.session.SessionUi
@@ -139,7 +140,7 @@ internal fun Panel(
             if (card.current.lines.size == 1) {
                 OutlinedTextField(
                     value = draft.correction,
-                    onValueChange = vm::setCorrection,
+                    onValueChange = { vm.setCorrection(it.take(Answer.MAX_CORRECTION)) },
                     label = { Text("What was said") },
                     modifier = Modifier.fillMaxWidth().testTag("correction"),
                 )

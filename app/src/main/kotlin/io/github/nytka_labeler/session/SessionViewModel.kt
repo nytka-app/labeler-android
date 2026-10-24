@@ -456,7 +456,12 @@ class SessionViewModel
             val item = current()?.item ?: return
             enqueue(
                 item,
-                Answer(clientId = newId(), skipped = true, listenedMs = player.listenedMs, answeredWith = via),
+                Answer(
+                    clientId = newId(),
+                    skipped = true,
+                    listenedMs = player.listenedMs.coerceIn(0, Answer.MAX_LISTENED_MS),
+                    answeredWith = via,
+                ),
             )
             advance()
         }
@@ -483,7 +488,7 @@ class SessionViewModel
                     correction = correction,
                     overlap = overlap,
                     linesDiffer = draft.linesDiffer,
-                    listenedMs = player.listenedMs,
+                    listenedMs = player.listenedMs.coerceIn(0, Answer.MAX_LISTENED_MS),
                     answeredWith = via,
                 )
             enqueue(item, answer)
@@ -581,7 +586,7 @@ class SessionViewModel
                     Answer(
                         clientId = newId(),
                         skipped = true,
-                        listenedMs = player.listenedMs,
+                        listenedMs = player.listenedMs.coerceIn(0, Answer.MAX_LISTENED_MS),
                         answeredWith = Via.SWIPE,
                     ),
                 )
@@ -774,8 +779,8 @@ class SessionViewModel
                     after.goal?.takeIf { it > 0 }?.let { goal ->
                         GateProgress(
                             after.task,
-                            before[after.task]?.labelled ?: after.labelled,
-                            after.labelled,
+                            before[after.task]?.towardGoal ?: after.towardGoal,
+                            after.towardGoal,
                             goal,
                             after.goalLabel.orEmpty(),
                         )
