@@ -1,0 +1,2 @@
+# The synthetic test token in the first commit (support/Fakes.kt); later commits mark it gitleaks:allow.
+f8a2a20fef75a971b8be14ba7c7eac3c80368d13:app/src/test/kotlin/io/github/nytka_labeler/support/Fakes.kt:generic-api-key:20
