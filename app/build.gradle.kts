@@ -14,7 +14,7 @@ fun versionCodeOf(version: String): Int {
     return (major * 10_000 + minor * 100 + patch).coerceAtLeast(1)
 }
 
-val appVersion = "0.1.0" // x-release-please-version
+val appVersion = "0.2.0" // x-release-please-version
 
 android {
     namespace = "io.github.nytka_labeler"
