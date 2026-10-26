@@ -30,7 +30,9 @@ You need a Nytka server that has the labeling routes (`/api/v1/info` lists `labe
 the **`labeling`** scope. That scope reaches `/api/v1/labeling/*` and nothing else, so a lost phone exposes no
 conversations. Create it in the server's token settings.
 
-1. Install the app (build below).
+1. Install the app: download `labeler-<version>.apk` from the
+   [Releases page](https://github.com/nytka-app/labeler-android/releases/latest) and open it on the phone (build
+   from source below if you prefer).
 2. Enter the server address (`https://...`) and paste the token. Plain `http://` is refused unless you switch on the
    private-network option, for a server on your own LAN.
 3. Allow notifications on Android 13 or later if you want the reminder.

@@ -9,7 +9,12 @@ plugins {
     alias(libs.plugins.detekt)
 }
 
-val appVersion = "0.1.0"
+fun versionCodeOf(version: String): Int {
+    val (major, minor, patch) = version.split(".").map { it.toInt() }
+    return (major * 10_000 + minor * 100 + patch).coerceAtLeast(1)
+}
+
+val appVersion = "0.1.0" // x-release-please-version
 
 android {
     namespace = "io.github.nytka_labeler"
@@ -20,7 +25,7 @@ android {
         minSdk = 31
         targetSdk = 37
         versionName = appVersion
-        versionCode = 100
+        versionCode = versionCodeOf(appVersion)
     }
 
     dependenciesInfo {
@@ -28,8 +33,25 @@ android {
         includeInBundle = false
     }
 
+    // Release signing comes from the environment (CI decodes the keystore from a secret);
+    // without it, release builds stay unsigned and cannot be installed, which is the point.
+    val keystore = System.getenv("NYTKA_KEYSTORE_FILE")
+    signingConfigs {
+        if (keystore != null) {
+            create("release") {
+                storeFile = file(keystore)
+                storePassword = System.getenv("NYTKA_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("NYTKA_KEY_ALIAS")
+                keyPassword = System.getenv("NYTKA_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
-        release { isMinifyEnabled = false }
+        release {
+            isMinifyEnabled = false
+            if (keystore != null) signingConfig = signingConfigs.getByName("release")
+        }
     }
 
     buildFeatures { compose = true }
